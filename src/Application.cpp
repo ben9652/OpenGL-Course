@@ -25,6 +25,8 @@ int main(void)
     if (err != GLEW_OK)
         std::cerr << "Error! " << glewGetErrorString(err) << std::endl;
 
+    std::cout << glGetString(GL_VERSION) << std::endl;
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
