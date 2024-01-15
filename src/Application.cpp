@@ -10,6 +10,8 @@
 #include "GLFW/glfw3.h"
 
 #define NUM_PI 3.14159265358979323846f
+#define TOLERANCE_ERROR 1e-4f
+
 #define ASSERT(x) if (!(x)) __debugbreak();
 #define GLCall(x) GLClearError();\
     x;\
@@ -39,12 +41,12 @@ struct ShaderProgramSource
 
 struct Shape
 {
-    double* positions;
+    float* positions;
     unsigned int* indices;
 
     unsigned int triangles_quantity;
 
-    Shape(double* _positions, unsigned int* _indices, unsigned int tr_q) :
+    Shape(float* _positions, unsigned int* _indices, unsigned int tr_q) :
         positions(_positions),
         indices(_indices),
         triangles_quantity(tr_q)
@@ -53,11 +55,11 @@ struct Shape
 
 struct Vertex
 {
-    double x;
-    double y;
+    float x;
+    float y;
 
 public:
-    Vertex(double _x, double _y) : x(_x), y(_y) {}
+    Vertex(float _x, float _y) : x(_x), y(_y) {}
 
     Vertex(const Vertex& vertex)
     {
@@ -69,26 +71,26 @@ public:
     friend bool operator!=(const Vertex& v1, const Vertex& v2);
 };
 
-inline Vertex RotateVertex(double x_component, double y_component, double angle)
+inline Vertex RotateVertex(float x_component, float y_component, float angle)
 {
-    double new_x = x_component * cos(angle) - y_component * sin(angle);
-    double new_y = x_component * sin(angle) + y_component * cos(angle);
+    float new_x = x_component * cosf(angle) - y_component * sinf(angle);
+    float new_y = x_component * sinf(angle) + y_component * cosf(angle);
     return Vertex(new_x, new_y);
 }
 
-static Shape BuildCircle(double radio, double rotation_angle)
+static Shape BuildCircle(float radio, float rotation_angle)
 {
-    std::vector<double> positions;
+    std::vector<float> positions;
     std::vector<unsigned int> indices;
 
     // Creación del vértice central y 1 vértice inicial desde el cual ir formando los triángulos.
-    positions.insert(positions.end(), {  0.0 , 0.0 });
-    positions.insert(positions.end(), {  0.0 , radio });
+    positions.insert(positions.end(), {  0.0f , 0.0f });
+    positions.insert(positions.end(), {  0.0f , radio });
 
     unsigned int i_center_vertex = 0;
     unsigned int i_last_vertex = 1;
 
-    Vertex vertex1(0, radio);
+    Vertex vertex1(0.0f, radio);
 
     unsigned int triangles_quantity = 0;
 
@@ -121,10 +123,10 @@ static Shape BuildCircle(double radio, double rotation_angle)
     size_t p_size = positions.size();
     size_t i_size = indices.size();
 
-    double* p_array = new double[p_size];
+    float* p_array = new float[p_size];
     unsigned int* i_array = new unsigned int[i_size];
 
-    memcpy(p_array, &positions[0], p_size * sizeof(double));
+    memcpy(p_array, &positions[0], p_size * sizeof(float));
     memcpy(i_array, &indices[0], i_size * sizeof(unsigned int));
 
     return Shape(p_array, i_array, triangles_quantity);
@@ -246,7 +248,7 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    Shape circle = BuildCircle(0.5, NUM_PI/360);
+    Shape circle = BuildCircle(0.5, NUM_PI/100);
 
     unsigned int triangles_qnty = circle.triangles_quantity;
     unsigned int vertices_qnty = triangles_qnty * 3;
@@ -255,7 +257,7 @@ int main(void)
     unsigned int vertexBuffer;
     GLCall(glGenBuffers(1, &vertexBuffer));
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer));
-    GLCall(glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(double), circle.positions, GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(float), circle.positions, GL_STATIC_DRAW));
 
     unsigned int index_buffer;
     GLCall(glGenBuffers(1, &index_buffer));
@@ -273,11 +275,11 @@ int main(void)
                     caso, como estamos considerando una posición de un vértice bidimensional, tenemos que
                     son 2 las componentes que conforman la posición del vértice.
             - type: especifica el tipo de dato de cada componente en el arreglo. En nuestro caso, el tipo
-                    de dato que tiene cada componente es un double.
+                    de dato que tiene cada componente es un float.
             - normalized: se especifica si los datos deberían ser normalizados o no. En este caso no necesitamos
-                          hacer esto porque double ya es un tipo de dato normalizado. Pero explico mejor esto:
+                          hacer esto porque float ya es un tipo de dato normalizado. Pero explico mejor esto:
                           Digamos que estamos especificando un byte cuyos valores van del 0 al 255, que suele ser
-                          la manera de especificar el color. Eso necesita ser normalizado entre 0 y 1 como un double
+                          la manera de especificar el color. Eso necesita ser normalizado entre 0 y 1 como un float
                           en nuestro shader.
             - stride: especifica el offset de byte entre atributos consecutivos de un vértice genérico. En otras
                       palabras, es la cantidad de bytes que hay entre cada vértice. Volvamos al ejemplo en el que
@@ -285,8 +287,8 @@ int main(void)
                        * "posición", que es un atributo de 3 componentes (supongamos que estamos en la 3ra dimensión);
                        * "textura", que es un atributo que tiene 2 componentes;
                        * y "normal", siendo un atributo de 3 componentes.
-                      El primer atributo tiene 24 bytes (al ser 3 double); el segundo, 8 bytes; y el tercer atributo,
-                      12 bytes. Eso suma un total de 44 bytes. Y ese es nuestro stride. Es básicamente el tamaño de
+                      El primer atributo tiene 12 bytes (al ser 3 float); el segundo, 8 bytes; y el tercer atributo,
+                      12 bytes. Eso suma un total de 32 bytes. Y ese es nuestro stride. Es básicamente el tamaño de
                       cada vértice.
                       La razón por la que es importante esto es porque, si queremos saltar de un vértice al otro, es
                       importante saber cuánto debe ser el offset en bytes para esto.
@@ -296,7 +298,7 @@ int main(void)
                        atributo, y como te darás cuenta es un puntero lo que hay que escribir, así que haz un casteo
                        si hace falta.
     */
-    GLCall(glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, sizeof(double) * 2, 0));
+    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
     GLCall(glEnableVertexAttribArray(0));
 
     ShaderProgramSource shaders = ParseShader("res/shaders/Basic.shader");
@@ -344,20 +346,16 @@ int main(void)
 
 bool operator==(const Vertex& v1, const Vertex& v2)
 {
-    double tolerancia = 1e-6;
-
-    bool xs_iguales = abs(v1.x - v2.x) < tolerancia ? true : false;
-    bool ys_iguales = abs(v1.y - v2.y) < tolerancia ? true : false;
+    bool xs_iguales = abs(v1.x - v2.x) < TOLERANCE_ERROR ? true : false;
+    bool ys_iguales = abs(v1.y - v2.y) < TOLERANCE_ERROR ? true : false;
 
     return xs_iguales && ys_iguales;
 }
 
 bool operator!=(const Vertex& v1, const Vertex& v2)
 {
-    double tolerancia = 1e-6;
-
-    bool xs_distintos = abs(v1.x - v2.x) < tolerancia ? false : true;
-    bool ys_distintos = abs(v1.y - v2.y) < tolerancia ? false : true;
+    bool xs_distintos = abs(v1.x - v2.x) < TOLERANCE_ERROR ? false : true;
+    bool ys_distintos = abs(v1.y - v2.y) < TOLERANCE_ERROR ? false : true;
 
     return xs_distintos || ys_distintos;
 }
