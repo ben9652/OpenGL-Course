@@ -76,7 +76,7 @@ inline Vertex RotateVertex(double x_component, double y_component, double angle)
     return Vertex(new_x, new_y);
 }
 
-static Shape& BuildCircle(double radio, double rotation_angle)
+static Shape BuildCircle(double radio, double rotation_angle)
 {
     std::vector<double> positions;
     std::vector<unsigned int> indices;
@@ -127,7 +127,7 @@ static Shape& BuildCircle(double radio, double rotation_angle)
     memcpy(p_array, &positions[0], p_size * sizeof(double));
     memcpy(i_array, &indices[0], i_size * sizeof(unsigned int));
 
-    return *(new Shape(p_array, i_array, triangles_quantity));
+    return Shape(p_array, i_array, triangles_quantity);
 }
 
 static ShaderProgramSource ParseShader(const std::string& filepath)
@@ -162,7 +162,7 @@ static ShaderProgramSource ParseShader(const std::string& filepath)
 
 static unsigned int CompileShader(unsigned int type, const std::string& source)
 {
-    unsigned int id = glCreateShader(type);
+    GLCall(unsigned int id = glCreateShader(type));
     const char* src = source.c_str();
 
     /*
@@ -171,23 +171,23 @@ static unsigned int CompileShader(unsigned int type, const std::string& source)
         - string: especifica el array de punteros a strigns conteniendo el código fuente a ser cargado al shader
         - lenght: especifica una longitud para el array de strings. Si se pone un NULL aquí se asume a cada string como que termina con un caracter nulo
     */
-    glShaderSource(id, 1, &src, nullptr);
-    glCompileShader(id);
+    GLCall(glShaderSource(id, 1, &src, nullptr));
+    GLCall(glCompileShader(id));
 
     // Error handling
     int result;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+    GLCall(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
     if (result == GL_FALSE)
     {
         int length;
-        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+        GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
         char* message = (char*)alloca(length * sizeof(char));
-        glGetShaderInfoLog(id, length, &length, message);
+        GLCall(glGetShaderInfoLog(id, length, &length, message));
         std::cout << "Failed to compile " <<
             (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" <<
             std::endl;
         std::cout << message << std::endl;
-        glDeleteShader(id);
+        GLCall(glDeleteShader(id));
         return 0;
     }
 
@@ -204,17 +204,17 @@ static unsigned int CompileShader(unsigned int type, const std::string& source)
 /// <returns>Algún identificador único para ese shader creado para que podamos luego asociarlo y usarlo</returns>
 static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
 {
-    unsigned int program = glCreateProgram();
+    GLCall(unsigned int program = glCreateProgram());
     unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
     unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
 
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    glValidateProgram(program);
+    GLCall(glAttachShader(program, vs));
+    GLCall(glAttachShader(program, fs));
+    GLCall(glLinkProgram(program));
+    GLCall(glValidateProgram(program));
 
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    GLCall(glDeleteShader(vs));
+    GLCall(glDeleteShader(fs));
 
     return program;
 }
@@ -251,14 +251,14 @@ int main(void)
 
     /* Creo un buffer para almacenar vértices */
     unsigned int vertexBuffer;
-    glGenBuffers(1, &vertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(double), circle.positions, GL_STATIC_DRAW);
+    GLCall(glGenBuffers(1, &vertexBuffer));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer));
+    GLCall(glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(double), circle.positions, GL_STATIC_DRAW));
 
     unsigned int index_buffer;
-    glGenBuffers(1, &index_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertices_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW);
+    GLCall(glGenBuffers(1, &index_buffer));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertices_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW));
 
     /*
         Describiré los atributos en orden:
@@ -294,13 +294,13 @@ int main(void)
                        atributo, y como te darás cuenta es un puntero lo que hay que escribir, así que haz un casteo
                        si hace falta.
     */
-    glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, sizeof(double) * 2, 0);
-    glEnableVertexAttribArray(0);
+    GLCall(glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, sizeof(double) * 2, 0));
+    GLCall(glEnableVertexAttribArray(0));
 
     ShaderProgramSource shaders = ParseShader("res/shaders/Basic.shader");
 
     unsigned int shader = CreateShader(shaders.VertexSource, shaders.FragmentSource);
-    glUseProgram(shader);
+    GLCall(glUseProgram(shader));
 
     std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
@@ -311,7 +311,7 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
-        GLCall(glDrawElements(GL_TRIANGLES, vertices_qnty, GL_INT, nullptr));
+        GLCall(glDrawElements(GL_TRIANGLES, vertices_qnty, GL_UNSIGNED_INT, nullptr));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -320,7 +320,7 @@ int main(void)
         glfwPollEvents();
     }
 
-    glDeleteProgram(shader);
+    GLCall(glDeleteProgram(shader));
 
     glfwTerminate();
     return 0;
