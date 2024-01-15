@@ -238,6 +238,8 @@ int main(void)
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
+    glfwSwapInterval(1);
+
     GLenum err = glewInit();
     if (err != GLEW_OK)
         std::cerr << "Error! " << glewGetErrorString(err) << std::endl;
@@ -302,16 +304,30 @@ int main(void)
     unsigned int shader = CreateShader(shaders.VertexSource, shaders.FragmentSource);
     GLCall(glUseProgram(shader));
 
+    GLCall(int location = glGetUniformLocation(shader, "u_Color"));
+    ASSERT(location != -1);
+    GLCall(glUniform4f(location, 0.2f, 0.3f, 0.8f, 1.0f));
+
     std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
+    float r = 0.0f;
+    float increment = 0.05f;
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
 
+        GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
         GLCall(glDrawElements(GL_TRIANGLES, vertices_qnty, GL_UNSIGNED_INT, nullptr));
+
+        if (r > 1.0f)
+            increment = -0.05f;
+        else if (r < 0.0f)
+            increment = 0.05f;
+
+        r += increment;
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
