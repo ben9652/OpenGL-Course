@@ -2,14 +2,113 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <vector>
+#include <math.h>
+#include <locale.h>
+#include <Windows.h>
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
+
+#define NUM_PI 3.14159265358979323846f
 
 struct ShaderProgramSource
 {
     std::string VertexSource;
     std::string FragmentSource;
 };
+
+struct Shape
+{
+    double* positions;
+    unsigned int* indices;
+
+    unsigned int triangles_quantity;
+
+    Shape(double* _positions, unsigned int* _indices, unsigned int tr_q) :
+        positions(_positions),
+        indices(_indices),
+        triangles_quantity(tr_q)
+    {}
+};
+
+struct Vertex
+{
+    double x;
+    double y;
+
+public:
+    Vertex(double _x, double _y) : x(_x), y(_y) {}
+
+    Vertex(const Vertex& vertex)
+    {
+        x = vertex.x;
+        y = vertex.y;
+    }
+
+    friend bool operator==(const Vertex& v1, const Vertex& v2);
+    friend bool operator!=(const Vertex& v1, const Vertex& v2);
+};
+
+inline Vertex RotateVertex(double x_component, double y_component, double angle)
+{
+    double new_x = x_component * cos(angle) - y_component * sin(angle);
+    double new_y = x_component * sin(angle) + y_component * cos(angle);
+    return Vertex(new_x, new_y);
+}
+
+static Shape& BuildCircle(double radio, double rotation_angle)
+{
+    std::vector<double> positions;
+    std::vector<unsigned int> indices;
+
+    // Creación del vértice central y 1 vértice inicial desde el cual ir formando los triángulos.
+    positions.insert(positions.end(), {  0.0 , 0.0 });
+    positions.insert(positions.end(), {  0.0 , radio });
+
+    unsigned int i_center_vertex = 0;
+    unsigned int i_last_vertex = 1;
+
+    Vertex vertex1(0, radio);
+
+    unsigned int triangles_quantity = 0;
+
+    while (true)
+    {
+        // Obtengo el último vértice para rotarlo
+        Vertex last_vertex(positions[2 * i_last_vertex], positions[2 * i_last_vertex + 1]);
+
+        // Creo el nuevo vértice rotado respecto al último
+        Vertex new_vertex = RotateVertex(last_vertex.x, last_vertex.y, rotation_angle);
+
+        triangles_quantity++;
+
+        if (new_vertex == vertex1)
+        {
+            // Cargo el último índice necesario
+            indices.insert(indices.end(), { i_center_vertex, i_last_vertex, 1 });
+            break;
+        }
+        else
+        {
+            // Cargo el único vértice nuevo que necesito para el nuevo triángulo
+            positions.insert(positions.end(), { new_vertex.x, new_vertex.y });
+
+            // Cargo los índices de los vértices que conforman el nuevo triángulo
+            indices.insert(indices.end(), { i_center_vertex, i_last_vertex, i_last_vertex++ + 1 });
+        }
+    }
+
+    size_t p_size = positions.size();
+    size_t i_size = indices.size();
+
+    double* p_array = new double[p_size];
+    unsigned int* i_array = new unsigned int[i_size];
+
+    memcpy(p_array, &positions[0], p_size * sizeof(double));
+    memcpy(i_array, &indices[0], i_size * sizeof(unsigned int));
+
+    return *(new Shape(p_array, i_array, triangles_quantity));
+}
 
 static ShaderProgramSource ParseShader(const std::string& filepath)
 {
@@ -109,7 +208,7 @@ int main(void)
         return -1;
 
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+    window = glfwCreateWindow(500, 500, "Hello World", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -125,30 +224,23 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    float positions[] = {
-        -0.5f, -0.5f,
-        -0.5f,  0.5f,
-         0.5f, -0.5f,
-         0.5f,  0.5f
-    };
+    Shape circle = BuildCircle(0.5, NUM_PI/2);
 
-    // Los primeros tres índices corresponden a los 3 vértices del primer triángulo
-    // Los segundos tres índices corresponden a los 3 vértices del segundo triángulo
-    unsigned int indices[] = {
-        0, 1, 2,
-        1, 2, 3
-    };
+    unsigned int triangles_qnty = circle.triangles_quantity;
+    unsigned int vertices_qnty = triangles_qnty * 3;
+
+    std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
     /* Creo un buffer para almacenar vértices */
     unsigned int vertexBuffer;
     glGenBuffers(1, &vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(double), circle.positions, GL_STATIC_DRAW);
 
     unsigned int index_buffer;
     glGenBuffers(1, &index_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertices_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW);
 
     /*
         Describiré los atributos en orden:
@@ -161,11 +253,11 @@ int main(void)
                     caso, como estamos considerando una posición de un vértice bidimensional, tenemos que
                     son 2 las componentes que conforman la posición del vértice.
             - type: especifica el tipo de dato de cada componente en el arreglo. En nuestro caso, el tipo
-                    de dato que tiene cada componente es un float.
+                    de dato que tiene cada componente es un double.
             - normalized: se especifica si los datos deberían ser normalizados o no. En este caso no necesitamos
-                          hacer esto porque float ya es un tipo de dato normalizado. Pero explico mejor esto:
+                          hacer esto porque double ya es un tipo de dato normalizado. Pero explico mejor esto:
                           Digamos que estamos especificando un byte cuyos valores van del 0 al 255, que suele ser
-                          la manera de especificar el color. Eso necesita ser normalizado entre 0 y 1 como un float
+                          la manera de especificar el color. Eso necesita ser normalizado entre 0 y 1 como un double
                           en nuestro shader.
             - stride: especifica el offset de byte entre atributos consecutivos de un vértice genérico. En otras
                       palabras, es la cantidad de bytes que hay entre cada vértice. Volvamos al ejemplo en el que
@@ -173,18 +265,18 @@ int main(void)
                        * "posición", que es un atributo de 3 componentes (supongamos que estamos en la 3ra dimensión);
                        * "textura", que es un atributo que tiene 2 componentes;
                        * y "normal", siendo un atributo de 3 componentes.
-                      El primer atributo tiene 12 bytes (al ser 3 floats); el segundo, 8 bytes; y el tercer atributo,
-                      12 bytes. Eso suma un total de 32 bytes. Y ese es nuestro stride. Es básicamente el tamaño de
+                      El primer atributo tiene 24 bytes (al ser 3 double); el segundo, 8 bytes; y el tercer atributo,
+                      12 bytes. Eso suma un total de 44 bytes. Y ese es nuestro stride. Es básicamente el tamaño de
                       cada vértice.
                       La razón por la que es importante esto es porque, si queremos saltar de un vértice al otro, es
                       importante saber cuánto debe ser el offset en bytes para esto.
             - pointer: es el puntero hacia el atributo real. Supongamos de nuevo que tengo los atributos mencionados
                        y nos centremos en solo UN vértice. ¿Cuál es el offset entonces de cada uno de esos atributos?
-                       De "posición", será 0 claramente; de "textura", 12; y de "normal", 20. Eso representa este
+                       De "posición", será 0 claramente; de "textura", 24; y de "normal", 32. Eso representa este
                        atributo, y como te darás cuenta es un puntero lo que hay que escribir, así que haz un casteo
                        si hace falta.
     */
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+    glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, sizeof(double) * 2, 0);
     glEnableVertexAttribArray(0);
 
     ShaderProgramSource shaders = ParseShader("res/shaders/Basic.shader");
@@ -199,7 +291,7 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, vertices_qnty, GL_UNSIGNED_INT, nullptr);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -212,4 +304,24 @@ int main(void)
 
     glfwTerminate();
     return 0;
+}
+
+bool operator==(const Vertex& v1, const Vertex& v2)
+{
+    double tolerancia = 1e-6;
+
+    bool xs_iguales = abs(v1.x - v2.x) < tolerancia ? true : false;
+    bool ys_iguales = abs(v1.y - v2.y) < tolerancia ? true : false;
+
+    return xs_iguales && ys_iguales;
+}
+
+bool operator!=(const Vertex& v1, const Vertex& v2)
+{
+    double x_v1 = v1.x - trunc(v1.x) < 1e-6 || v1.x - trunc(v1.x) > 0.9 ? round(v1.x) : v1.x;
+    double y_v1 = v1.y - trunc(v1.y) < 1e-6 || v1.y - trunc(v1.y) > 0.9 ? round(v1.y) : v1.y;
+    double x_v2 = v2.x - trunc(v2.x) < 1e-6 || v2.x - trunc(v2.x) > 0.9 ? round(v2.x) : v2.x;
+    double y_v2 = v2.y - trunc(v2.y) < 1e-6 || v2.y - trunc(v2.y) > 0.9 ? round(v2.y) : v2.y;
+
+    return x_v1 != x_v2 || y_v1 != y_v2;
 }
