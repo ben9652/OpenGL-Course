@@ -10,6 +10,26 @@
 #include "GLFW/glfw3.h"
 
 #define NUM_PI 3.14159265358979323846f
+#define ASSERT(x) if (!(x)) __debugbreak();
+#define GLCall(x) GLClearError();\
+    x;\
+    ASSERT(GLLogCall(#x, __FILE__, __LINE__))
+
+static void GLClearError()
+{
+    while (glGetError() != GL_NO_ERROR);
+}
+
+static bool GLLogCall(const char* function, const char* file, int line)
+{
+    while (GLenum error = glGetError())
+    {
+        std::cout << "[OpenGL Error] (" << error << "): " << function <<
+            " " << file << ":" << line << std::endl;
+        return false;
+    }
+    return true;
+}
 
 struct ShaderProgramSource
 {
@@ -224,12 +244,10 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    Shape circle = BuildCircle(0.5, NUM_PI/2);
+    Shape circle = BuildCircle(0.5, NUM_PI/360);
 
     unsigned int triangles_qnty = circle.triangles_quantity;
     unsigned int vertices_qnty = triangles_qnty * 3;
-
-    std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
     /* Creo un buffer para almacenar vértices */
     unsigned int vertexBuffer;
@@ -284,6 +302,8 @@ int main(void)
     unsigned int shader = CreateShader(shaders.VertexSource, shaders.FragmentSource);
     glUseProgram(shader);
 
+    std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
@@ -291,7 +311,7 @@ int main(void)
         glClear(GL_COLOR_BUFFER_BIT);
 
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
-        glDrawElements(GL_TRIANGLES, vertices_qnty, GL_UNSIGNED_INT, nullptr);
+        GLCall(glDrawElements(GL_TRIANGLES, vertices_qnty, GL_INT, nullptr));
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
