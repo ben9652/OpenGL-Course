@@ -318,10 +318,10 @@ bool operator==(const Vertex& v1, const Vertex& v2)
 
 bool operator!=(const Vertex& v1, const Vertex& v2)
 {
-    double x_v1 = v1.x - trunc(v1.x) < 1e-6 || v1.x - trunc(v1.x) > 0.9 ? round(v1.x) : v1.x;
-    double y_v1 = v1.y - trunc(v1.y) < 1e-6 || v1.y - trunc(v1.y) > 0.9 ? round(v1.y) : v1.y;
-    double x_v2 = v2.x - trunc(v2.x) < 1e-6 || v2.x - trunc(v2.x) > 0.9 ? round(v2.x) : v2.x;
-    double y_v2 = v2.y - trunc(v2.y) < 1e-6 || v2.y - trunc(v2.y) > 0.9 ? round(v2.y) : v2.y;
+    double tolerancia = 1e-6;
 
-    return x_v1 != x_v2 || y_v1 != y_v2;
+    bool xs_distintos = abs(v1.x - v2.x) < tolerancia ? false : true;
+    bool ys_distintos = abs(v1.y - v2.y) < tolerancia ? false : true;
+
+    return xs_distintos || ys_distintos;
 }
