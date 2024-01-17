@@ -44,12 +44,14 @@ struct Shape
     float* positions;
     unsigned int* indices;
 
-    unsigned int triangles_quantity;
+    unsigned int triangles_qnty;
+    unsigned int vertices_qnty;
 
-    Shape(float* _positions, unsigned int* _indices, unsigned int tr_q) :
+    Shape(float* _positions, unsigned int* _indices, unsigned int tr_q, unsigned int v_q) :
         positions(_positions),
         indices(_indices),
-        triangles_quantity(tr_q)
+        triangles_qnty(tr_q),
+        vertices_qnty(v_q)
     {}
 };
 
@@ -93,6 +95,7 @@ static Shape BuildCircle(float radio, float rotation_angle)
     Vertex vertex1(0.0f, radio);
 
     unsigned int triangles_quantity = 0;
+    unsigned int vertices_quantity = 2;
 
     while (true)
     {
@@ -114,6 +117,7 @@ static Shape BuildCircle(float radio, float rotation_angle)
         {
             // Cargo el único vértice nuevo que necesito para el nuevo triángulo
             positions.insert(positions.end(), { new_vertex.x, new_vertex.y });
+            vertices_quantity++;
 
             // Cargo los índices de los vértices que conforman el nuevo triángulo
             indices.insert(indices.end(), { i_center_vertex, i_last_vertex, i_last_vertex++ + 1 });
@@ -129,7 +133,7 @@ static Shape BuildCircle(float radio, float rotation_angle)
     memcpy(p_array, &positions[0], p_size * sizeof(float));
     memcpy(i_array, &indices[0], i_size * sizeof(unsigned int));
 
-    return Shape(p_array, i_array, triangles_quantity);
+    return Shape(p_array, i_array, triangles_quantity, vertices_quantity);
 }
 
 static ShaderProgramSource ParseShader(const std::string& filepath)
@@ -248,21 +252,25 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    Shape circle = BuildCircle(0.5, NUM_PI/100);
+    Shape circle = BuildCircle(0.5, NUM_PI/2);
 
-    unsigned int triangles_qnty = circle.triangles_quantity;
-    unsigned int vertices_qnty = triangles_qnty * 3;
+    unsigned int vao;
+    GLCall(glGenVertexArrays(1, &vao));
+    GLCall(glBindVertexArray(vao));
+
+    unsigned int triangles_qnty = circle.triangles_qnty;
+    unsigned int vertices_qnty = circle.vertices_qnty;
 
     /* Creo un buffer para almacenar vértices */
     unsigned int vertexBuffer;
     GLCall(glGenBuffers(1, &vertexBuffer));
     GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer));
-    GLCall(glBufferData(GL_ARRAY_BUFFER, vertices_qnty * 2 * sizeof(float), circle.positions, GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ARRAY_BUFFER, 2 * vertices_qnty * sizeof(float), circle.positions, GL_STATIC_DRAW));
 
     unsigned int index_buffer;
     GLCall(glGenBuffers(1, &index_buffer));
     GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertices_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW));
+    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * triangles_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW));
 
     /*
         Describiré los atributos en orden:
@@ -310,6 +318,12 @@ int main(void)
     ASSERT(location != -1);
     GLCall(glUniform4f(location, 0.2f, 0.3f, 0.8f, 1.0f));
 
+    // Desasocio los datos de los buffers de vértices e índices
+    GLCall(glBindVertexArray(0));
+    GLCall(glUseProgram(0));
+    GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
     std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
     float r = 0.0f;
@@ -319,10 +333,15 @@ int main(void)
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
-
+        
+        GLCall(glUseProgram(shader));
         GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
+
+        GLCall(glBindVertexArray(vao));
+        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer));
+
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
-        GLCall(glDrawElements(GL_TRIANGLES, vertices_qnty, GL_UNSIGNED_INT, nullptr));
+        GLCall(glDrawElements(GL_TRIANGLES, 3 * triangles_qnty, GL_UNSIGNED_INT, nullptr));
 
         if (r > 1.0f)
             increment = -0.05f;
