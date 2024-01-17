@@ -7,31 +7,17 @@
 #include <locale.h>
 #include <Windows.h>
 #include "GL/glew.h"
-#include "GLFW/glfw3.h"
+
+#include "Display.h"
+
+#include "Renderer.h"
+
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 #define NUM_PI 3.14159265358979323846f
 #define TOLERANCE_ERROR 1e-4f
 
-#define ASSERT(x) if (!(x)) __debugbreak();
-#define GLCall(x) GLClearError();\
-    x;\
-    ASSERT(GLLogCall(#x, __FILE__, __LINE__))
-
-static void GLClearError()
-{
-    while (glGetError() != GL_NO_ERROR);
-}
-
-static bool GLLogCall(const char* function, const char* file, int line)
-{
-    while (GLenum error = glGetError())
-    {
-        std::cout << "[OpenGL Error] (" << error << "): " << function <<
-            " " << file << ":" << line << std::endl;
-        return false;
-    }
-    return true;
-}
 
 struct ShaderProgramSource
 {
@@ -227,24 +213,9 @@ static unsigned int CreateShader(const std::string& vertexShader, const std::str
 
 int main(void)
 {
-    GLFWwindow* window;
+    Display window(500, 500, "Hello World!");
 
-    /* Initialize the library */
-    if (!glfwInit())
-        return -1;
-
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(500, 500, "Hello World", NULL, NULL);
-    if (!window)
-    {
-        glfwTerminate();
-        return -1;
-    }
-
-    /* Make the window's context current */
-    glfwMakeContextCurrent(window);
-
-    glfwSwapInterval(1);
+    window.setSwapInterval(1);
 
     GLenum err = glewInit();
     if (err != GLEW_OK)
@@ -261,16 +232,9 @@ int main(void)
     unsigned int triangles_qnty = circle.triangles_qnty;
     unsigned int vertices_qnty = circle.vertices_qnty;
 
-    /* Creo un buffer para almacenar vértices */
-    unsigned int vertexBuffer;
-    GLCall(glGenBuffers(1, &vertexBuffer));
-    GLCall(glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer));
-    GLCall(glBufferData(GL_ARRAY_BUFFER, 2 * vertices_qnty * sizeof(float), circle.positions, GL_STATIC_DRAW));
+    VertexBuffer vb(circle.positions, 2 * vertices_qnty * sizeof(float));
 
-    unsigned int index_buffer;
-    GLCall(glGenBuffers(1, &index_buffer));
-    GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer));
-    GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * triangles_qnty * sizeof(unsigned int), circle.indices, GL_STATIC_DRAW));
+    IndexBuffer ib(circle.indices, 3 * triangles_qnty);
 
     /*
         Describiré los atributos en orden:
@@ -306,8 +270,8 @@ int main(void)
                        atributo, y como te darás cuenta es un puntero lo que hay que escribir, así que haz un casteo
                        si hace falta.
     */
-    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
     GLCall(glEnableVertexAttribArray(0));
+    GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
 
     ShaderProgramSource shaders = ParseShader("res/shaders/Basic.shader");
 
@@ -329,7 +293,7 @@ int main(void)
     float r = 0.0f;
     float increment = 0.05f;
     /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window))
+    while (!window.windowShouldClose())
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
@@ -338,7 +302,7 @@ int main(void)
         GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
 
         GLCall(glBindVertexArray(vao));
-        GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer));
+        ib.Bind();
 
         /* Dibujo los triángulos. El segundo parámetro cuenta realmente los vértices, es decir, los pares (x,y) de cada vértice. */
         GLCall(glDrawElements(GL_TRIANGLES, 3 * triangles_qnty, GL_UNSIGNED_INT, nullptr));
@@ -351,15 +315,14 @@ int main(void)
         r += increment;
 
         /* Swap front and back buffers */
-        glfwSwapBuffers(window);
+        window.swapBuffers();
 
         /* Poll for and process events */
-        glfwPollEvents();
+        window.pollEvents();
     }
 
     GLCall(glDeleteProgram(shader));
 
-    glfwTerminate();
     return 0;
 }
 
