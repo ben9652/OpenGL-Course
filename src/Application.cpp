@@ -1,9 +1,8 @@
 #include <iostream>
-#include <vector>
-#include <math.h>
 #include "GL/glew.h"
 
 #include "Display.h"
+#include "shapes/Circle.h"
 
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
@@ -11,106 +10,6 @@
 #include "VertexArray.h"
 
 #include "Shader.h"
-
-#define NUM_PI 3.14159265358979323846f
-#define TOLERANCE_ERROR 1e-4f
-
-struct Shape
-{
-    float* positions;
-    unsigned int* indices;
-
-    unsigned int triangles_qnty;
-    unsigned int vertices_qnty;
-
-    Shape(float* _positions, unsigned int* _indices, unsigned int tr_q, unsigned int v_q) :
-        positions(_positions),
-        indices(_indices),
-        triangles_qnty(tr_q),
-        vertices_qnty(v_q)
-    {}
-};
-
-struct Vertex
-{
-    float x;
-    float y;
-
-public:
-    Vertex(float _x, float _y) : x(_x), y(_y) {}
-
-    Vertex(const Vertex& vertex)
-    {
-        x = vertex.x;
-        y = vertex.y;
-    }
-
-    friend bool operator==(const Vertex& v1, const Vertex& v2);
-    friend bool operator!=(const Vertex& v1, const Vertex& v2);
-};
-
-inline Vertex RotateVertex(float x_component, float y_component, float angle)
-{
-    float new_x = x_component * cosf(angle) - y_component * sinf(angle);
-    float new_y = x_component * sinf(angle) + y_component * cosf(angle);
-    return Vertex(new_x, new_y);
-}
-
-static Shape BuildCircle(float radio, float rotation_angle)
-{
-    std::vector<float> positions;
-    std::vector<unsigned int> indices;
-
-    // Creación del vértice central y 1 vértice inicial desde el cual ir formando los triángulos.
-    positions.insert(positions.end(), {  0.0f , 0.0f });
-    positions.insert(positions.end(), {  0.0f , radio });
-
-    unsigned int i_center_vertex = 0;
-    unsigned int i_last_vertex = 1;
-
-    Vertex vertex1(0.0f, radio);
-
-    unsigned int triangles_quantity = 0;
-    unsigned int vertices_quantity = 2;
-
-    while (true)
-    {
-        // Obtengo el último vértice para rotarlo
-        Vertex last_vertex(positions[2 * i_last_vertex], positions[2 * i_last_vertex + 1]);
-
-        // Creo el nuevo vértice rotado respecto al último
-        Vertex new_vertex = RotateVertex(last_vertex.x, last_vertex.y, rotation_angle);
-
-        triangles_quantity++;
-
-        if (new_vertex == vertex1)
-        {
-            // Cargo el último índice necesario
-            indices.insert(indices.end(), { i_center_vertex, i_last_vertex, 1 });
-            break;
-        }
-        else
-        {
-            // Cargo el único vértice nuevo que necesito para el nuevo triángulo
-            positions.insert(positions.end(), { new_vertex.x, new_vertex.y });
-            vertices_quantity++;
-
-            // Cargo los índices de los vértices que conforman el nuevo triángulo
-            indices.insert(indices.end(), { i_center_vertex, i_last_vertex, i_last_vertex++ + 1 });
-        }
-    }
-
-    size_t p_size = positions.size();
-    size_t i_size = indices.size();
-
-    float* p_array = new float[p_size];
-    unsigned int* i_array = new unsigned int[i_size];
-
-    memcpy(p_array, &positions[0], p_size * sizeof(float));
-    memcpy(i_array, &indices[0], i_size * sizeof(unsigned int));
-
-    return Shape(p_array, i_array, triangles_quantity, vertices_quantity);
-}
 
 int main(void)
 {
@@ -123,20 +22,19 @@ int main(void)
         std::cerr << "Error! " << glewGetErrorString(err) << std::endl;
 
     std::cout << glGetString(GL_VERSION) << std::endl;
-
-    Shape circle = BuildCircle(0.5, NUM_PI/2);
-
-    unsigned int triangles_qnty = circle.triangles_qnty;
-    unsigned int vertices_qnty = circle.vertices_qnty;
+    
+    Shape* circle = new Circle(0.5f);
+    unsigned int triangles_qnty = circle->GetTriangles();
+    unsigned int vertices_qnty = circle->GetVertices();
 
     VertexArray va;
-    VertexBuffer vb(circle.positions, 2 * vertices_qnty * sizeof(float));
+    VertexBuffer vb(circle->GetPositions(), 2 * vertices_qnty * sizeof(float));
 
     VertexBufferLayout layout;
     layout.Push<float>(2);
     va.AddBuffer(vb, layout);
 
-    IndexBuffer ib(circle.indices, 3 * triangles_qnty);
+    IndexBuffer ib(circle->GetIndexes(), 3 * triangles_qnty);
 
     Shader shader("res/shaders/Basic.shader");
     shader.Bind();
@@ -181,20 +79,4 @@ int main(void)
     }
 
     return 0;
-}
-
-bool operator==(const Vertex& v1, const Vertex& v2)
-{
-    bool xs_iguales = abs(v1.x - v2.x) < TOLERANCE_ERROR ? true : false;
-    bool ys_iguales = abs(v1.y - v2.y) < TOLERANCE_ERROR ? true : false;
-
-    return xs_iguales && ys_iguales;
-}
-
-bool operator!=(const Vertex& v1, const Vertex& v2)
-{
-    bool xs_distintos = abs(v1.x - v2.x) < TOLERANCE_ERROR ? false : true;
-    bool ys_distintos = abs(v1.y - v2.y) < TOLERANCE_ERROR ? false : true;
-
-    return xs_distintos || ys_distintos;
 }
