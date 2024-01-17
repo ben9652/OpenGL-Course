@@ -1,31 +1,19 @@
 #include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
 #include <vector>
 #include <math.h>
-#include <locale.h>
-#include <Windows.h>
 #include "GL/glew.h"
 
 #include "Display.h"
-
-#include "Renderer.h"
 
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
 
 #include "VertexArray.h"
 
+#include "Shader.h"
+
 #define NUM_PI 3.14159265358979323846f
 #define TOLERANCE_ERROR 1e-4f
-
-
-struct ShaderProgramSource
-{
-    std::string VertexSource;
-    std::string FragmentSource;
-};
 
 struct Shape
 {
@@ -124,95 +112,6 @@ static Shape BuildCircle(float radio, float rotation_angle)
     return Shape(p_array, i_array, triangles_quantity, vertices_quantity);
 }
 
-static ShaderProgramSource ParseShader(const std::string& filepath)
-{
-    std::ifstream stream(filepath);
-
-    enum class ShaderType
-    {
-        NONE = -1, VERTEX = 0, FRAGMENT = 1
-    };
-
-    std::string line;
-    std::stringstream ss[2];
-    ShaderType type = ShaderType::NONE;
-    while (getline(stream, line))
-    {
-        if (line.find("#shader") != std::string::npos)
-        {
-            if (line.find("vertex") != std::string::npos)
-                type = ShaderType::VERTEX;
-            else if (line.find("fragment") != std::string::npos)
-                type = ShaderType::FRAGMENT;
-        }
-        else
-        {
-            ss[(int)type] << line << '\n';
-        }
-    }
-
-    return { ss[0].str(), ss[1].str() };
-}
-
-static unsigned int CompileShader(unsigned int type, const std::string& source)
-{
-    GLCall(unsigned int id = glCreateShader(type));
-    const char* src = source.c_str();
-
-    /*
-        - shader: id que especifica el gestor del objeto del shader cuyo código fuente será reeplazado
-        - count: el número de códigos fuente que estamos especificando
-        - string: especifica el array de punteros a strigns conteniendo el código fuente a ser cargado al shader
-        - lenght: especifica una longitud para el array de strings. Si se pone un NULL aquí se asume a cada string como que termina con un caracter nulo
-    */
-    GLCall(glShaderSource(id, 1, &src, nullptr));
-    GLCall(glCompileShader(id));
-
-    // Error handling
-    int result;
-    GLCall(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
-    if (result == GL_FALSE)
-    {
-        int length;
-        GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
-        char* message = (char*)alloca(length * sizeof(char));
-        GLCall(glGetShaderInfoLog(id, length, &length, message));
-        std::cout << "Failed to compile " <<
-            (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" <<
-            std::endl;
-        std::cout << message << std::endl;
-        GLCall(glDeleteShader(id));
-        return 0;
-    }
-
-    return id;
-}
-
-/// <summary>
-/// El propósito de esta función es proveer a OpenGL el código fuente del shader real,
-/// y queremos que OpenGL compile ese programa y enlace los dos juntos en un único
-/// programa que sería el shader completo.
-/// </summary>
-/// <param name="vertexShader"></param>
-/// <param name="fragmentShader"></param>
-/// <returns>Algún identificador único para ese shader creado para que podamos luego asociarlo y usarlo</returns>
-static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader)
-{
-    GLCall(unsigned int program = glCreateProgram());
-    unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-    unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-    GLCall(glAttachShader(program, vs));
-    GLCall(glAttachShader(program, fs));
-    GLCall(glLinkProgram(program));
-    GLCall(glValidateProgram(program));
-
-    GLCall(glDeleteShader(vs));
-    GLCall(glDeleteShader(fs));
-
-    return program;
-}
-
 int main(void)
 {
     Display window(500, 500, "Hello World!");
@@ -239,14 +138,14 @@ int main(void)
 
     IndexBuffer ib(circle.indices, 3 * triangles_qnty);
 
-    ShaderProgramSource shaders = ParseShader("res/shaders/Basic.shader");
+    Shader shader("res/shaders/Basic.shader");
+    shader.Bind();
+    shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
 
-    unsigned int shader = CreateShader(shaders.VertexSource, shaders.FragmentSource);
-    GLCall(glUseProgram(shader));
-
-    GLCall(int location = glGetUniformLocation(shader, "u_Color"));
-    ASSERT(location != -1);
-    GLCall(glUniform4f(location, 0.2f, 0.3f, 0.8f, 1.0f));
+    va.Unbind();
+    vb.Unbind();
+    ib.Unbind();
+    shader.Unbind();
 
     std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
@@ -258,8 +157,8 @@ int main(void)
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
         
-        GLCall(glUseProgram(shader));
-        GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
+        shader.Bind();
+        shader.SetUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
 
         va.Bind();
         ib.Bind();
@@ -280,8 +179,6 @@ int main(void)
         /* Poll for and process events */
         window.pollEvents();
     }
-
-    GLCall(glDeleteProgram(shader));
 
     return 0;
 }
