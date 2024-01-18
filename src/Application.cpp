@@ -4,21 +4,20 @@
 #include "Display.h"
 #include "shapes/Square.h"
 
+#include "Renderer.h"
 #include "VertexBuffer.h"
 #include "VertexBufferLayout.h"
 #include "IndexBuffer.h"
-
 #include "VertexArray.h"
-
 #include "Shader.h"
-
-#include "Renderer.h"
-
 #include "Texture.h"
+
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 int main(void)
 {
-    Display window(500, 500, "Hello World!");
+    Display window(640, 480, "Hello World!");
 
     window.setSwapInterval(1);
 
@@ -45,9 +44,12 @@ int main(void)
 
     IndexBuffer ib(shape.GetIndexes(), 3 * triangles_qnty);
 
+    glm::mat4 proj = glm::ortho(-2.0f, 2.0f, -1.5f, 1.5f, -1.0f, 1.0f);
+
     Shader shader("res/shaders/Basic.shader");
     shader.Bind();
     shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
+    shader.SetUniformMat4f("u_MVP", proj);
 
     Texture texture("res/textures/TheCherno.png");
     texture.Bind();
