@@ -12,5 +12,5 @@ public:
 	float GetRadio();
 
 private:
-	void BuildShape();
+	void BuildShape() override;
 };

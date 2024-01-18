@@ -2,7 +2,7 @@
 #include "GL/glew.h"
 
 #include "Display.h"
-#include "shapes/Circle.h"
+#include "shapes/Square.h"
 
 #include "VertexBuffer.h"
 #include "VertexBufferLayout.h"
@@ -13,6 +13,8 @@
 #include "Shader.h"
 
 #include "Renderer.h"
+
+#include "Texture.h"
 
 int main(void)
 {
@@ -26,29 +28,37 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
     
-    Circle circle(0.5f);
-    unsigned int triangles_qnty = circle.GetTriangles();
-    unsigned int vertices_qnty = circle.GetVertices();
+    Square shape(1.0f, true);
+    unsigned int triangles_qnty = shape.GetTriangles();
+    unsigned int vertices_qnty = shape.GetVertices();
+
+    GLCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+    GLCall(glEnable(GL_BLEND));
 
     VertexArray va;
-    VertexBuffer vb(circle.GetPositions(), 2 * vertices_qnty * sizeof(float));
+    VertexBuffer vb(shape.GetPositions(), 2 * vertices_qnty * 2 * sizeof(float));
 
     VertexBufferLayout layout;
     layout.Push<float>(2);
+    layout.Push<float>(2);
     va.AddBuffer(vb, layout);
 
-    IndexBuffer ib(circle.GetIndexes(), 3 * triangles_qnty);
+    IndexBuffer ib(shape.GetIndexes(), 3 * triangles_qnty);
 
     Shader shader("res/shaders/Basic.shader");
     shader.Bind();
     shader.SetUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
+
+    Texture texture("res/textures/TheCherno.png");
+    texture.Bind();
+    shader.SetUniform1i("u_Texture", 0); // En el segundo parámetro tiene que ir lo mismo que va de parámetro en texture.Bind()
 
     va.Unbind();
     vb.Unbind();
     ib.Unbind();
     shader.Unbind();
 
-    std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
+    //std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 
     Renderer renderer;
 

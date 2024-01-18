@@ -24,7 +24,7 @@ void VertexArray::AddBuffer(const VertexBuffer& vb, const VertexBufferLayout& la
 	for (unsigned int i = 0; i < elements.size(); i++)
 	{
 		const auto& element = elements[i];
-		GLCall(glEnableVertexAttribArray(0));
+		GLCall(glEnableVertexAttribArray(i));
 
         /*
             Describiré los atributos en orden de glVertexAttribPointer:
