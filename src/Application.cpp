@@ -17,7 +17,7 @@
 
 int main(void)
 {
-    Display window(640, 480, "Hello World!");
+    Display window(960, 540, "Hello World!");
 
     window.setSwapInterval(1);
 
@@ -27,7 +27,7 @@ int main(void)
 
     std::cout << glGetString(GL_VERSION) << std::endl;
     
-    Square shape(1.0f, true);
+    Square shape(100.0f, true, false, 100.0f, 100.0f);
     unsigned int triangles_qnty = shape.GetTriangles();
     unsigned int vertices_qnty = shape.GetVertices();
 
@@ -44,7 +44,11 @@ int main(void)
 
     IndexBuffer ib(shape.GetIndexes(), 3 * triangles_qnty);
 
-    glm::mat4 proj = glm::ortho(-2.0f, 2.0f, -1.5f, 1.5f, -1.0f, 1.0f);
+    glm::mat4 proj = glm::ortho(0.0f, 960.0f, 0.0f, 540.0f, -1.0f, 0.0f);
+
+    glm::vec4 vp(100.0f, 100.0f, 0.0f, 1.0f);
+
+    glm::vec4 result = proj * vp;
 
     Shader shader("res/shaders/Basic.shader");
     shader.Bind();
@@ -54,11 +58,6 @@ int main(void)
     Texture texture("res/textures/TheCherno.png");
     texture.Bind();
     shader.SetUniform1i("u_Texture", 0); // En el segundo parámetro tiene que ir lo mismo que va de parámetro en texture.Bind()
-
-    va.Unbind();
-    vb.Unbind();
-    ib.Unbind();
-    shader.Unbind();
 
     //std::cout << (unsigned char*)"There're " << triangles_qnty << " triangles to draw" << std::endl;
 

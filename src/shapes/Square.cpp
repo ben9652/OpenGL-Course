@@ -56,10 +56,11 @@ void Square::BuildShape()
 			m_Positions[13] = m_Y;
 		}
 
-		m_Positions[2] = 0.0f;			m_Positions[3] = 0.0f;
-		m_Positions[6] = 0.0f;			m_Positions[7] = m_SideLength;
-		m_Positions[10] = m_SideLength; m_Positions[11] = m_SideLength;
-		m_Positions[14] = m_SideLength; m_Positions[15] = 0.0f;
+		// Carga de posición de textura (en este caso solamente se escriben las coordenadas normalizadas, y el origen para la textura es siempre (0,0))
+		m_Positions[2] =	0.0f;	m_Positions[3] =	0.0f;
+		m_Positions[6] =	0.0f;	m_Positions[7] =	1.0f;
+		m_Positions[10] =	1.0f;	m_Positions[11] =	1.0f;
+		m_Positions[14] =	1.0f;	m_Positions[15] =	0.0f;
 	}
 	else
 	{
