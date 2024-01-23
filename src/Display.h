@@ -1,6 +1,9 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_opengl3.h"
+#include "imgui/imgui_impl_glfw.h"
 
 #include "GLFWException.h"
 
@@ -30,10 +33,19 @@ public:
 		}
 
 		glfwMakeContextCurrent(window);
+
+		ImGui::CreateContext();
+		const char* glsl_version = "#version 100";
+		ImGui_ImplGlfw_InitForOpenGL(window, true);
+		ImGui_ImplOpenGL3_Init(glsl_version);
+		ImGui::StyleColorsDark();
 	}
 
 	~Display()
 	{
+		ImGui_ImplGlfw_Shutdown();
+		ImGui_ImplOpenGL3_Shutdown();
+		ImGui::DestroyContext();
 		glfwTerminate();
 	}
 
@@ -55,5 +67,12 @@ public:
 	void pollEvents()
 	{
 		glfwPollEvents();
+	}
+
+	void ImGui_NewFrame()
+	{
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
 	}
 };
