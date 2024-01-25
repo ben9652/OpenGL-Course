@@ -17,8 +17,8 @@ private:
 	std::string m_FilePath;
 	unsigned int m_RendererID;
 
-	// Mapa para guardar los valores "location" de uniform para no llamarlos una y otra vez en GetUniformLocation
-	std::unordered_map<std::string, int> m_UniformLocationCache;
+	// Mapa para guardar los valores "location" de uniform para no consultar su ubicación una y otra vez, en GetUniformLocation, a la GPU
+	mutable std::unordered_map<std::string, int> m_UniformLocationCache;
 
 public:
 	Shader(const std::string& filepath);
@@ -47,5 +47,5 @@ private:
 	/// <returns>Algún identificador único para ese shader creado para que podamos luego asociarlo y usarlo</returns>
 	unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader);
 
-	int GetUniformLocation(const std::string& name);
+	int GetUniformLocation(const std::string& name) const;
 };
