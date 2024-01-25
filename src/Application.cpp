@@ -19,6 +19,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 
 #include "tests/TestClearColor.h"
+#include "tests/TestTexture2D.h"
 
 int main(void)
 {
@@ -39,10 +40,12 @@ int main(void)
     currentTest = testMenu;
 
     testMenu->RegisterTest<test::TestClearColor>("Clear color");
+    testMenu->RegisterTest<test::TestTexture2D>("2D Texture");
 
     /* Loop until the user closes the window */
     while (!window.windowShouldClose())
     {
+        GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
         renderer.Clear();
 
         window.ImGui_NewFrame();
@@ -53,7 +56,6 @@ int main(void)
             ImGui::Begin("Test");
             if (currentTest != testMenu && ImGui::Button("<-"))
             {
-                GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
                 delete currentTest;
                 currentTest = testMenu;
             }
